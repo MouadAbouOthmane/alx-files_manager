@@ -2,7 +2,7 @@ import dbClient from '../utils/db.js';
 import redisClient from '../utils/redis.js';
 
 class FilesController {
-    static async putPublish(req, res) {
+    static async getShow(req, res) {
         const { id } = req.params;
         const token = req.headers['x-token'];
 
@@ -16,26 +16,23 @@ class FilesController {
             return res.status(404).json({ error: 'Not found' });
         }
 
-        await dbClient.db.collection('files').updateOne({ _id: dbClient.ObjectId(id) }, { $set: { isPublic: true } });
-        return res.status(200).json({ ...file, isPublic: true });
+        return res.status(200).json(file);
     }
 
-    static async putUnpublish(req, res) {
-        const { id } = req.params;
+    static async getIndex(req, res) {
         const token = req.headers['x-token'];
+        const { parentId = '0', page = '0' } = req.query;
 
         const userId = await FilesController.getUserId(token);
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const file = await dbClient.db.collection('files').findOne({ _id: dbClient.ObjectId(id), userId });
-        if (!file) {
-            return res.status(404).json({ error: 'Not found' });
-        }
+        const perPage = 20;
+        const skip = parseInt(page) * perPage;
 
-        await dbClient.db.collection('files').updateOne({ _id: dbClient.ObjectId(id) }, { $set: { isPublic: false } });
-        return res.status(200).json({ ...file, isPublic: false });
+        const files = await dbClient.db.collection('files').find({ userId, parentId }).skip(skip).limit(perPage).toArray();
+        return res.status(200).json(files);
     }
 
     static async getUserId(token) {
